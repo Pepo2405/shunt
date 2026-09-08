@@ -40,6 +40,20 @@ if [ -z "$out" ]; then pass=$((pass+1)); echo "ok    SHUNT_MIN_LINES=1000 permit
 out="$(printf 'esto no es json' | bash "$HOOK")"
 if [ -z "$out" ]; then pass=$((pass+1)); echo "ok    input roto => allow"; else fail=$((fail+1)); echo "FAIL  input roto -> $out"; fi
 
+# --- nudge (PostToolUse) ---
+NUDGE="../hooks/nudge.sh"; SID="test-$$"; rm -rf "${TMPDIR:-/tmp}/shunt-nudge-$SID"
+nudge() { jq -cn --arg t "$1" --argjson i "$2" --arg c "$PWD" --arg s "$SID" '{tool_name:$t,tool_input:$i,cwd:$c,session_id:$s}' | CLAUDE_PLUGIN_ROOT="$PWD/.." bash "$NUDGE"; }
+expect() { local name="$1" exp="$2" out="$3"; local got="silent"; printf '%s' "$out" | grep -q additionalContext && got="nudge"
+  if [ "$got" = "$exp" ]; then pass=$((pass+1)); echo "ok    $name"; else fail=$((fail+1)); echo "FAIL  $name (esperado $exp, obtuvo $got) -> $out"; fi; }
+expect "nudge: grep en archivo grande"        nudge  "$(nudge Bash "$(jq -cn --arg c "grep -n foo $big" '{command:$c}')")"
+expect "nudge: segunda vez mismo archivo"     silent "$(nudge Bash "$(jq -cn --arg c "grep -n bar $big" '{command:$c}')")"
+expect "nudge: grep en archivo chico"         silent "$(nudge Bash "$(jq -cn --arg c "grep -n foo $small" '{command:$c}')")"
+expect "nudge: cat no dispara"                silent "$(nudge Bash "$(jq -cn --arg c "cat $small" '{command:$c}')")"
+expect "nudge: Grep tool path relativo"       nudge  "$(SID="$SID-b" nudge Grep '{"pattern":"foo","path":"fixtures/big.txt"}')"
+expect "nudge: SHUNT_NO_NUDGE"                silent "$(SHUNT_NO_NUDGE=1 SID="$SID-c" nudge Bash "$(jq -cn --arg c "grep -n foo $big" '{command:$c}')")"
+expect "nudge: input roto"                    silent "$(printf 'nope' | bash "$NUDGE")"
+rm -rf "${TMPDIR:-/tmp}"/shunt-nudge-"$SID"*
+
 rm -f "$big" "$small"
 echo; echo "pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]

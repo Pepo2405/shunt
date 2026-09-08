@@ -5,6 +5,7 @@ Plugin de Claude Code que desvía las lecturas de archivos grandes a un modelo b
 ## Qué hace
 
 - **Hook `PreToolUse`** sobre `Read` y `Bash`. Deniega `Read` de archivos con más de 350 líneas cuando no hay `limit`, y `cat`/`bat`/`head -n N` grandes en Bash cuando la salida no va a un filtro (`head`, `grep`, `wc`, etc.). El mensaje de deny le dice al modelo qué hacer en su lugar.
+- **Hook `PostToolUse`** sobre `Bash` y `Grep`. Tras el primer `grep`/`rg` sobre un archivo grande en la sesión, inyecta un aviso sugiriendo `bulk-read`. Una vez por archivo y sesión; no bloquea nada.
 - **`scripts/bulk-read`**: recibe una pregunta y N archivos, los numera, los manda a Haiku con un system prompt mínimo (sin tools, sin MCP, sin settings: ~400 tokens de overhead) y devuelve una respuesta con citas `archivo:línea`.
 - **Skill `bulk-read`**: cuándo delegar y cuándo no.
 
@@ -34,7 +35,8 @@ El hook actúa solo. Para consultar a mano:
 | `SHUNT_MIN_LINES` | `350` | Umbral de líneas para denegar |
 | `SHUNT_MODEL` | `haiku` | Modelo worker |
 | `SHUNT_MAX_BYTES` | `800000` | Tamaño total máximo por consulta |
-| `SHUNT_OFF` | | `1` desactiva el hook |
+| `SHUNT_OFF` | | `1` desactiva ambos hooks |
+| `SHUNT_NO_NUDGE` | | `1` desactiva solo el aviso PostToolUse |
 
 ## Tests
 
