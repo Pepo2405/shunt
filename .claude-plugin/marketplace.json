@@ -1,0 +1,11 @@
+{
+  "name": "shunt",
+  "owner": { "name": "Pepo" },
+  "plugins": [
+    {
+      "name": "shunt",
+      "source": "./",
+      "description": "Hook que frena lecturas grandes + bulk-read con Haiku."
+    }
+  ]
+}

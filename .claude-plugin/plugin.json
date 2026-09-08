@@ -1,0 +1,7 @@
+{
+  "name": "shunt",
+  "version": "0.1.0",
+  "description": "Desvía lecturas de archivos grandes a un modelo barato (Haiku vía claude -p). Un hook PreToolUse frena Read/cat sobre archivos largos y un script bulk-read responde preguntas sobre ellos sin meterlos en el contexto principal.",
+  "author": { "name": "Pepo" },
+  "keywords": ["tokens", "context", "hooks", "haiku", "bulk-read"]
+}

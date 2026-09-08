@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# bulk-read: answer one concrete question about one or more files using a cheap worker model,
+# so the main agent never loads the files into its context.
+#
+#   bulk-read --question "¿Cómo se maneja el cambio de track?" core/src/player/engine.rs src/app.rs
+#
+# Env: SHUNT_MODEL (default haiku), SHUNT_MAX_BYTES (default 800000).
+set -euo pipefail
+
+MODEL="${SHUNT_MODEL:-haiku}"
+MAX_BYTES="${SHUNT_MAX_BYTES:-800000}"
+question=""
+files=()
+
+usage() { echo "uso: bulk-read --question \"<pregunta>\" <archivo> [archivo...]" >&2; exit 64; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -q|--question) question="${2:-}"; shift 2 ;;
+    -h|--help) usage ;;
+    --) shift; files+=("$@"); break ;;
+    -*) echo "opción desconocida: $1" >&2; usage ;;
+    *) files+=("$1"); shift ;;
+  esac
+done
+[ -n "$question" ] && [ "${#files[@]}" -gt 0 ] || usage
+command -v claude >/dev/null || { echo "bulk-read: no encuentro el CLI 'claude' en PATH" >&2; exit 69; }
+
+total=0
+for f in "${files[@]}"; do
+  [ -f "$f" ] || { echo "bulk-read: no existe $f" >&2; exit 66; }
+  total=$((total + $(wc -c < "$f")))
+done
+[ "$total" -le "$MAX_BYTES" ] || { echo "bulk-read: $total bytes supera SHUNT_MAX_BYTES=$MAX_BYTES; partí la consulta en menos archivos" >&2; exit 65; }
+
+system='Sos un lector de código. Recibís uno o más archivos con números de línea y una pregunta.
+Respondé la pregunta de forma concreta y verificable, en el idioma de la pregunta.
+Reglas:
+- Citá siempre ubicaciones como archivo:línea (ej. src/app.rs:412). Usá los números de línea que vienen en el texto, no inventes.
+- Preferí hechos leídos en el código sobre suposiciones. Si algo no está en los archivos, decilo.
+- Sé breve: lo que hace falta para actuar, sin repetir código salvo fragmentos cortos e imprescindibles.
+- No propongas cambios salvo que la pregunta lo pida.'
+
+{
+  printf 'PREGUNTA: %s\n\n' "$question"
+  for f in "${files[@]}"; do
+    printf '===== %s (%s líneas) =====\n' "$f" "$(wc -l < "$f" | tr -d ' ')"
+    awk '{ printf "%6d| %s\n", NR, $0 }' "$f"
+    printf '\n'
+  done
+} | env -u CLAUDECODE claude -p \
+      --model "$MODEL" \
+      --tools "" \
+      --strict-mcp-config \
+      --setting-sources "" \
+      --disable-slash-commands \
+      --no-session-persistence \
+      --system-prompt "$system" \
+      --output-format text
