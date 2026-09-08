@@ -23,8 +23,8 @@ lines_of() {
 }
 
 deny() {
-  local what="$1" n="$2"
-  jq -cn --arg r "shunt: $what tiene $n líneas (umbral $MIN). No lo cargues entero en el contexto. Para entender o responder preguntas sobre el archivo: $bulk --question \"<pregunta concreta>\" <archivos...>  (corre Haiku, devuelve respuesta con archivo:línea). Para editar: Read con offset y limit sobre el rango que necesitás, o grep para ubicarlo. Desactivar: SHUNT_OFF=1." \
+  local what="$1" n="$2" target="${3:-<archivos...>}"
+  jq -cn --arg r "shunt: $what tiene $n líneas (umbral $MIN); no lo cargues entero en el contexto. Hacé UNA llamada con tu pregunta real en vez de encadenar grep y Reads parciales: $bulk --question \"<qué necesitás saber, pidiendo archivo:línea>\" $target  (corre Haiku, ~15s). Solo para editar: después usá Read con offset y limit sobre las líneas citadas. Desactivar: SHUNT_OFF=1." \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
   exit 0
 }
@@ -36,7 +36,7 @@ case "$tool" in
     [ -z "$fp" ] && exit 0
     [ -n "$limit" ] && exit 0
     n="$(lines_of "$fp")"
-    [ "$n" -gt "$MIN" ] 2>/dev/null && deny "$fp" "$n"
+    [ "$n" -gt "$MIN" ] 2>/dev/null && deny "$fp" "$n" "$fp"
     exit 0
     ;;
   Bash)
@@ -58,7 +58,7 @@ case "$tool" in
             case "$a" in -*) continue ;; esac
             n="$(lines_of "$a")"; total=$((total + n)); [ -z "$first" ] && first="$a"
           done
-          [ "$total" -gt "$MIN" ] && deny "cat ${first}…" "$total"
+          [ "$total" -gt "$MIN" ] && deny "cat ${first}…" "$total" "$first"
           ;;
         head|tail)
           shift; num=""
@@ -72,7 +72,7 @@ case "$tool" in
             esac
           done
           num="${num//[^0-9]/}"
-          [ -n "$num" ] && [ "$num" -gt "$MIN" ] && [ $# -ge 1 ] && [ "$(lines_of "$1")" -gt "$MIN" ] && deny "$1 (head/tail -n $num)" "$(lines_of "$1")"
+          [ -n "$num" ] && [ "$num" -gt "$MIN" ] && [ $# -ge 1 ] && [ "$(lines_of "$1")" -gt "$MIN" ] && deny "$1 (head/tail -n $num)" "$(lines_of "$1")" "$1"
           ;;
       esac
     done
