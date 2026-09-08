@@ -45,6 +45,6 @@ done
 [ "${#big[@]}" -gt 0 ] || exit 0
 
 files="$(printf '%s ' "${big[@]#$cwd/}")"
-jq -cn --arg ctx "shunt: estás grepeando archivos grandes:$shown. Si estás explorando para entender cómo funciona algo (no buscando un identificador que ya conocés), una sola llamada reemplaza la cadena grep → Read → grep → Read y cita archivo:línea: $bulk --question \"<qué necesitás saber>\" $files (Haiku, ~15-30s). Aviso único por archivo." \
+jq -cn --arg ctx "shunt: estás grepeando archivos grandes:$shown. Si estás explorando para entender cómo funciona algo (no buscando un identificador que ya conocés), una sola llamada (podés pasar varios archivos juntos) reemplaza la cadena grep → Read → grep → Read y cita archivo:línea: $bulk --question \"<qué necesitás saber>\" $files (Haiku, ~15-30s). Aviso único por archivo." \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$ctx}}'
 exit 0
